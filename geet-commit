@@ -1,0 +1,23 @@
+#!/bin/bash
+
+branch="$1"
+if [ $# -gt 1 ]; then
+    repo="$($GEET abspath $2)"
+else
+    repo="$($GEET git-remote)"
+fi
+parent="$("$GEET" remote-head "$@")"
+commitmsg="$(mktemp)"
+pack="$(mktemp)"
+trap "rm -f $commitmsg $pack" exit
+
+die() {
+    echo >&2 "$@"
+    exit 1
+}
+
+echo >"$commitmsg" "*** no commit message ***"
+vim "$commitmsg" || die "editor returned 1"
+
+#$GEET-make-commit-pack "$branch" "$commitmsg" "$parent" |
+#$GEET-rsh "$repo" git receive-pack .

@@ -1,0 +1,25 @@
+#!/bin/bash
+# geet rsh REPO CMD...
+
+repo="$1"
+shift
+
+case "$repo" in
+    ssh://*)
+        host="$(echo "$repo" | sed 's|^ssh://\([^/]\+\)/.*$|\1|')"
+        path="$(echo "$repo" | sed 's|^ssh://[^/]\+\(/.*\)$|\1|')"
+        ;;
+    *)
+        host=""
+        path="$repo"
+        ;;
+esac
+
+if [ -n "$host" ]; then
+    ssh "$host" -- cd "$path" \&\& "$@"
+elif [ -d "$path" ]; then
+    cd "$path" && exec "$@"
+else
+    echo >&2 "Dunno how to shell to $repo"
+    exit 1
+fi

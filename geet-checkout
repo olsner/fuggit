@@ -1,0 +1,21 @@
+#!/bin/bash
+# geet checkout/co BRANCH [REPO] [DIR]
+
+tree="$1"
+if [ $# -gt 1 ]; then
+    repo="$($GEET abspath $2)"
+else
+    repo="$($GEET git-remote)"
+fi
+target="${3-.}"
+
+# geet-rsh git-upload-pack "$(geet-remote-repodir)"
+
+
+# FIXME Doesn't remove files, and prints every file. We'd like to show
+# something like A/M/D [file], and also sync the deletion.
+git archive --format=tar.gz --remote="$repo" --prefix="$target/" "$tree" |
+tar -zxv
+
+# Could actually save the branch too
+echo "$repo" > "$target/.geet"
