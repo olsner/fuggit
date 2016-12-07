@@ -3,9 +3,9 @@
 
 branch="$1"
 if [ $# -gt 1 ]; then
-    repo="$($GEET abspath $2)"
+    repo="$($GEET-abspath $2)"
 else
-    repo="$($GEET git-remote)"
+    repo="$($GEET-git-remote)"
 fi
 
 git ls-remote "$repo" refs/heads/"$branch" | cut -f1
