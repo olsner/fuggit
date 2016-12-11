@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec git archive --format=tar.gz --remote="$1" --prefix="dummy/" "$2"

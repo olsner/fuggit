@@ -2,20 +2,21 @@
 # geet checkout/co BRANCH [REPO] [DIR]
 
 tree="$1"
-if [ $# -gt 1 ]; then
+if [ $# -gt 1 -a -d "$2" ]; then
     repo="$($GEET-abspath $2)"
+elif [ $# -gt 1 ]; then
+    repo="$2"
 else
     repo="$($GEET-git-remote)"
 fi
 target="${3-.}"
 
-# geet-rsh git-upload-pack "$(geet-remote-repodir)"
-
+proto=$($GEET-detect-proto "$repo")
 
 # FIXME Doesn't remove files, and prints every file. We'd like to show
 # something like A/M/D [file], and also sync the deletion.
-git archive --format=tar.gz --remote="$repo" --prefix="$target/" "$tree" |
-tar -zxv
+$GEET-checkout-$proto "$repo" "$tree" |
+tar -zxv --show-transformed-names --transform 's|^[^/]*|'"$target"'|'
 
 # Could actually save the branch too
 echo "$repo" > "$target/.geet"

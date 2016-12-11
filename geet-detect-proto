@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Could use this for ssh:// and git@github.com:, but that would require more
+# parsing to extract the repo path and convert it.
+if [[ "$1" =~ ^https://github.com/ ]]; then
+    echo github-archive
+else
+    echo git-archive
+fi

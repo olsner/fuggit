@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec curl -sL "$1/archive/$2.tar.gz"
