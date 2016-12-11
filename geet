@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Seems $0 includes the PATH entry it was called with
+d="$(dirname "$0")/"
+b="$1"
+shift
+export GEET="${d}geet"
+exec "$GEET-$b" "$@"
