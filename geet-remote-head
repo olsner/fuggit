@@ -8,4 +8,4 @@ else
     repo="$($GEET-git-remote)"
 fi
 
-git ls-remote "$repo" refs/heads/"$branch" | cut -f1
+git ls-remote "$repo" refs/heads/"$branch" | cut -f1 | head -1
