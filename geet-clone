@@ -1,4 +1,0 @@
-#!/bin/bash
-
-base="$(basename "${1%.git}")"
-exec "$GEET" checkout master "$1" "${2-$base}"

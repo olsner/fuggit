@@ -199,7 +199,7 @@ string make_commit(const string& tree, const string& commitmessage) {
         "\n" + commitmessage;
 }
 
-// geet-make-commit-pack BRANCH COMMITMSGFILE PARENT
+// fgt-make-commit-pack BRANCH COMMITMSGFILE PARENT
 int main(int argc, const char *argv[]) {
     assert(argc >= 4);
     branch = argv[1];

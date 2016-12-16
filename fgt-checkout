@@ -1,22 +1,22 @@
 #!/bin/bash
-# geet checkout/co BRANCH [REPO] [DIR]
+# fgt checkout/co BRANCH [REPO] [DIR]
 
 tree="$1"
 if [ $# -gt 1 -a -d "$2" ]; then
-    repo="$($GEET-abspath $2)"
+    repo="$($FGT-abspath $2)"
 elif [ $# -gt 1 ]; then
     repo="$2"
 else
-    repo="$($GEET-git-remote)"
+    repo="$($FGT-git-remote)"
 fi
 target="${3-.}"
 
-proto=$($GEET-detect-proto "$repo")
+proto=$($FGT-detect-proto "$repo")
 
 # FIXME Doesn't remove files, and prints every file. We'd like to show
 # something like A/M/D [file], and also sync the deletion.
-$GEET-checkout-$proto "$repo" "$tree" |
+$FGT-checkout-$proto "$repo" "$tree" |
 tar -zxv --show-transformed-names --transform 's|^[^/]*|'"$target"'|'
 
 # Could actually save the branch too
-echo "$repo" > "$target/.geet"
+echo "$repo" > "$target/.fgt"

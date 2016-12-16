@@ -4,5 +4,5 @@
 d="$(dirname "$0")/"
 b="$1"
 shift
-export GEET="${d}geet"
-exec "$GEET-$b" "$@"
+export FGT="${d}fgt"
+exec "$FGT-$b" "$@"

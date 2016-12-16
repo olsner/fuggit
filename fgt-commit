@@ -7,11 +7,11 @@ die() {
 
 branch="$1"
 if [ $# -gt 1 ]; then
-    repo="$($GEET-abspath $2)"
+    repo="$($FGT-abspath $2)"
 else
-    repo="$($GEET-git-remote)"
+    repo="$($FGT-git-remote)"
 fi
-#parent="$($GEET-remote-head "$@")"
+#parent="$($FGT-remote-head "$@")"
 parent=398c54ff3645fc8aab9df36e39a5ad28befab04d
 test -n "$parent" || die "Couldn't find current remote head..."
 
@@ -22,7 +22,7 @@ trap "rm -f $commitmsg $pack" exit
 echo >"$commitmsg" "*** no commit message ***"
 #vim "$commitmsg" || die "editor returned 1"
 
-$GEET-ls-files -print0 |
-valgrind --error-exitcode=1 $GEET-make-commit-pack "$branch" "$commitmsg" "$parent" |
+$FGT-ls-files -print0 |
+valgrind --error-exitcode=1 $FGT-make-commit-pack "$branch" "$commitmsg" "$parent" |
 hd
-#$GEET-rsh "$repo" git receive-pack .
+#$FGT-rsh "$repo" git receive-pack .

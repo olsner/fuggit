@@ -3,7 +3,7 @@
 tail -n+6 "$0" | less
 exit $?
 
-GEET
+FGT
 
   The extra-stupid version control system based on git.
 
@@ -19,18 +19,18 @@ GEET
 USAGE
 
   The basic principle is similar to most version control systems - there's a
-  main comment "geet" that accepts various common subcommands.
+  main comment "fgt" that accepts various common subcommands.
   Beware that most tools don't really validate input, so get it right or make
   backups.
 
 
 SUBCOMMANDS
 
-  geet help
+  fgt help
 
     Show this help text.
 
-  geet checkout [BRANCH [REPO [TARGET]]]
+  fgt checkout [BRANCH [REPO [TARGET]]]
 
     Change branch, clone a new repo or update the current branch.
 
@@ -38,17 +38,17 @@ SUBCOMMANDS
       The remote branch to check out
     REPO
       The remote repository to check out, the default value is the last repo
-      cloned with geet in the current directory.
+      cloned with fgt in the current directory.
     TARGET
       The directory to put the checked-out files in. The default valus is cwd.
       Any existing files not recognized may be deleted.
 
-  geet clone REPO [TARGET]
+  fgt clone REPO [TARGET]
 
     Create a new checkout. Like git clone, if target is not given it will be
     derived from the basename of REPO.
 
-  geet commit BRANCH [REPO]
+  fgt commit BRANCH [REPO]
 
     Collect the current working directory state and push it to BRANCH as a new
     commit. BRANCH must be in the refs/heads/* namespace and does not include

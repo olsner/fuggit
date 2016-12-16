@@ -1,5 +1,5 @@
 #!/bin/bash
-# geet rsh REPO CMD...
+# fgt rsh REPO CMD...
 
 repo="$1"
 shift
