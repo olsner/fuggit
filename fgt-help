@@ -3,7 +3,7 @@
 tail -n+6 "$0" | less
 exit $?
 
-FGT
+Fuggit
 
   The extra-stupid version control system based on git.
 
@@ -31,6 +31,7 @@ SUBCOMMANDS
     Show this help text.
 
   fgt checkout [BRANCH [REPO [TARGET]]]
+  fgt co [...]
 
     Change branch, clone a new repo or update the current branch.
 
@@ -48,7 +49,10 @@ SUBCOMMANDS
     Create a new checkout. Like git clone, if target is not given it will be
     derived from the basename of REPO.
 
+    This can also be done less conveniently with the checkout command.
+
   fgt commit BRANCH [REPO]
+  fgt ci [...]
 
     Collect the current working directory state and push it to BRANCH as a new
     commit. BRANCH must be in the refs/heads/* namespace and does not include
