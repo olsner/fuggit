@@ -20,7 +20,7 @@ trap "rm -f $commitmsg $pack" exit
 
 echo >"$commitmsg" "*** no commit message ***"
 vim "$commitmsg" || die "editor returned 1"
-author_email="$(whoami) <$(whoami)@$(hostname)>"
+author_email="$($FGT-guess-author)"
 
 $FGT-ls-files -print0 |
 $FGT-make-commit-pack "refs/heads/$branch" "$author_email" "$commitmsg" "$parent" |
