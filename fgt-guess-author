@@ -1,3 +1,7 @@
 #!/bin/bash
 
-echo "$(whoami) <$(whoami)@$(hostname)>"
+if [ -f $HOME/.fgtauthor ]; then
+    cat $HOME/.fgtauthor
+else
+    exit 1
+fi
