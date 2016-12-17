@@ -1,15 +1,22 @@
 #include <arpa/inet.h>
 #include <assert.h>
-#include <openssl/sha.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string>
 #include <map>
+#include <openssl/sha.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <stdarg.h>
+#include <unistd.h>
+#include <zlib.h>
 
 using namespace std;
+
+namespace {
+
+static const string NUL = string(1, '\0');
+static const string SP = " ";
 
 __attribute__((noreturn)) void perror_abort(const char *fmt, ...) {
     va_list ap;
@@ -18,6 +25,20 @@ __attribute__((noreturn)) void perror_abort(const char *fmt, ...) {
     va_end(ap);
     perror("");
     abort();
+}
+
+string compress(const string &in) {
+    string out(compressBound(in.size()), ' ');
+    size_t destLen = out.size();
+    int status = compress2((Bytef*)&out[0], &destLen, (const Bytef*)&in[0],
+            in.size(), 9);
+    if (status == Z_OK) {
+        out.erase(destLen);
+    } else {
+        fprintf(stderr, "zlib error: %d (%s)\n", status, zError(status));
+        abort();
+    }
+    return out;
 }
 
 string read_file(const string &name) {
@@ -58,9 +79,9 @@ string hex(const string& bin) {
 }
 
 string sha1(const string& data) {
-    unsigned char temp[20];
+    unsigned char temp[SHA_DIGEST_LENGTH];
     SHA1((const unsigned char *)data.data(), data.size(), temp);
-    return string((const char *)temp, 20);
+    return string((const char *)temp, sizeof(temp));
 }
 
 struct Object {
@@ -70,6 +91,7 @@ struct Object {
 
 struct Pack {
     map<string, Object> objects;
+    SHA_CTX sha;
 
     void add(const string& hash, const Object& obj) {
         if (objects.find(hash) == objects.end()) {
@@ -83,18 +105,25 @@ struct Pack {
         return hash;
     }
 
-    static void write_vint(FILE *fp, size_t x) {
+    void write_vint(FILE *fp, size_t x) {
         assert(x);
         while (x) {
             char c = x & 0x7f;
             if (x >>= 7) c |= 0x80;
-            fputc(c, fp);
+            writec(fp, c);
         }
     }
 
-    static void write(FILE *fp, const string& data) {
-        size_t size = data.size();
-        const char *p = data.data();
+    void writec(FILE *fp, char c) {
+        fputc(c, fp);
+        SHA1_Update(&sha, &c, 1);
+    }
+    void write(FILE *fp, const string& data) {
+        write(fp, data.data(), data.size());
+    }
+    void write(FILE *fp, const void *p_, size_t size) {
+        const char *p = (const char *)p_;
+        SHA1_Update(&sha, p, size);
         while (size) {
             ssize_t n = fwrite(p, 1, size, fp);
             if (n < 0) perror_abort("fwrite");
@@ -104,25 +133,41 @@ struct Pack {
     }
 
     void print(FILE *fp) {
+        SHA1_Init(&sha);
         char header[] = "PACK\0\0\0\2\0\0\0";
         ((uint32_t*)header)[2] = htonl(objects.size());
-        fwrite(header, sizeof(header), 1, fp);
+        write(fp, header, sizeof(header));
         for (const auto& i: objects) {
             // first byte: low 4 bits is size, high bit is "size cont'd",
             // middle three bits are type
-            const string& hash = i.first;
+            //const string& hash = i.first;
             const Object& obj = i.second;
 
             assert(obj.type);
             size_t size = obj.data->size();
-            write_vint(fp, ((size & -16) << 3) | (obj.type << 4) | (size & 15));
-            // FIXME compressed(data) - even if stored, it's in a deflate stream
-            write(fp, *obj.data);
+            long file_pos = ftell(fp);
+            write_vint(fp, ((size >> 4) << 7) | (obj.type << 4) | (size & 15));
+            long file_pos2 = ftell(fp);
+            const string compressed = compress(*obj.data);
+            write(fp, compressed);
+
+            if (file_pos > 0) {
+                // SHA-1 type size size-in-packfile offset-in-packfile
+                fprintf(stderr, "%s %-6d %zu %zu %ld\n",
+                        hex(i.first).c_str(),
+                        obj.type,
+                        size,
+                        compressed.size() + (file_pos2 - file_pos),
+                        file_pos);
+            }
         }
+        unsigned char md[SHA_DIGEST_LENGTH];
+        SHA1_Final(md, &sha);
+        write(fp, md, sizeof(md));
     }
 };
 
-string branch, commitmessage, parent;
+string branch, author, commitmessage, parent;
 Pack pack;
 
 struct Tree {
@@ -137,7 +182,7 @@ struct Tree {
         ::stat(path.c_str(), &stat_);
     }
 
-    Tree& addpath(const string& path, const size_t pos = 0) {
+    void addpath(const string& path, const size_t pos = 0) {
         size_t end = path.find('/', pos);
         Tree& sub = addfile(path.substr(pos, end), path.substr(0, end));
         if (end != string::npos) {
@@ -159,22 +204,35 @@ struct Tree {
     }
 
     const string& data() {
+        static int rec = 0;
+        rec++;
         if (data_.size() == 0) {
             if (S_ISDIR(stat().st_mode)) {
                 for (auto& it: files_) {
-                    it.second.hash();
-                    // dir: generate dir data
+                    string hash = it.second.hash();
+
+                    char buf[12];
+                    snprintf(buf, sizeof(buf), "%o ", it.second.git_mode());
+                    const string entry = buf + it.first + NUL + hash;
+                    data_ += entry;
+                    fprintf(stderr, "%s: %s %s\n", path_.c_str(), entry.c_str(), hex(hash).c_str());
                 }
-            } else {
+            } else if (S_ISREG(stat().st_mode)) {
                 data_ = read_file(path_);
+            } else {
+                fprintf(stderr, "Unhandled file type (mode %o) for %s\n",
+                        stat().st_mode, path_.c_str());
+                abort();
             }
         }
+        rec--;
         return data_;
     }
 
     const string& hash() {
         if (hash_.empty()) {
             hash_ = sha1(data());
+            fprintf(stderr, "%s: %s\n", path_.c_str(), hex(hash_).c_str());
             pack.add(hash_, object());
         }
         return hash_;
@@ -184,6 +242,21 @@ struct Tree {
         return S_ISDIR(stat().st_mode) ? OBJ_TREE : OBJ_BLOB;
     }
 
+    int git_mode() {
+        int m = stat().st_mode;
+        // file types recognized by git
+        const int type_mask = S_IFDIR | S_IFREG | S_IFLNK;
+        const int exec_mask = 0111;
+
+        if ((m & S_IFMT) != (m & type_mask))
+        {
+            fprintf(stderr, "Unknown file type (mode %o) for %s\n",
+                    m, path_.c_str());
+            abort();
+        }
+        return (m & type_mask) | 0644 | (m & exec_mask ? exec_mask : 0);
+    }
+
     Object object() {
         return Object { gittype(), &data() };
     }
@@ -191,32 +264,49 @@ struct Tree {
 
 Tree root(".");
 
+// output: safe_name <safe_email> git_date
+string make_author() {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s %ld +0000", author.c_str(), time(nullptr));
+    return buf;
+}
+
 string make_commit(const string& tree, const string& commitmessage) {
-    const char pfx[] = "commit 254\0tree ";
-    return string(pfx, sizeof(pfx) - 1) +
-        tree + "\n"
-        "parent " + parent + "\n"
-        "\n" + commitmessage;
+    const string author = make_author();
+    return "tree " + tree +
+        "\nparent " + parent +
+        "\nauthor " + author +
+        "\ncommitter " + author +
+        "\n\n" + commitmessage;
+}
+
 }
 
 // fgt-make-commit-pack BRANCH COMMITMSGFILE PARENT
 int main(int argc, const char *argv[]) {
-    assert(argc >= 4);
+    assert(argc >= 5);
     branch = argv[1];
-    commitmessage = read_file(argv[2]);
-    parent = argv[3];
+    author = argv[2];
+    commitmessage = read_file(argv[3]);
+    parent = argv[4];
     assert(parent.size() == 40);
 
     char *line = nullptr;
     size_t n = 0;
     while (getdelim(&line, &n, '\0', stdin) >= 0)
     {
-        root.addpath(line);
+        if (string(line) == "./tmp.pack" || string(line) == "./tmp.idx")
+            continue;
+        const char *path = strchr(line, '/');
+        if (path)
+            root.addpath(path + 1);
     }
 
     string tree = root.hash();
     string commitobj = make_commit(hex(tree), commitmessage);
     string commithash = pack.hash_add(Object { OBJ_COMMIT, &commitobj });
+
+    fprintf(stderr, "%s\n", commitobj.c_str());
 
     printf("%04zx%s %s %s", 6 + 40 + branch.size() + 40,
             parent.c_str(), hex(commithash).c_str(), branch.c_str());

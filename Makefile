@@ -1,5 +1,5 @@
-CXXFLAGS = -std=gnu++11 -g -Os
-LIBS = -lcrypto
+CXXFLAGS = -std=gnu++11 -g -Os -Wall
+LIBS = -lcrypto -lz
 
 all: fgt-make-commit-pack
 

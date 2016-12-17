@@ -11,8 +11,7 @@ if [ $# -gt 1 ]; then
 else
     repo="$($FGT-git-remote)"
 fi
-#parent="$($FGT-remote-head "$@")"
-parent=398c54ff3645fc8aab9df36e39a5ad28befab04d
+parent="$($FGT-remote-head "$@")"
 test -n "$parent" || die "Couldn't find current remote head..."
 
 commitmsg="$(mktemp)"
@@ -21,8 +20,8 @@ trap "rm -f $commitmsg $pack" exit
 
 echo >"$commitmsg" "*** no commit message ***"
 #vim "$commitmsg" || die "editor returned 1"
+author_email="$(whoami) <$(whoami)@$(hostname)>"
 
 $FGT-ls-files -print0 |
-valgrind --error-exitcode=1 $FGT-make-commit-pack "$branch" "$commitmsg" "$parent" |
-hd
-#$FGT-rsh "$repo" git receive-pack .
+$FGT-make-commit-pack "$branch" "$author_email" "$commitmsg" "$parent" |
+($FGT-rsh "$repo" git receive-pack . >/dev/null)
