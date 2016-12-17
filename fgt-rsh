@@ -1,24 +1,30 @@
 #!/bin/bash
 # fgt rsh REPO CMD...
+# Instances of the literal string '$path' in the command will be replaced by
+# the remote path of the repository.
 
 repo="$1"
 shift
+
+cmd=( "$@" )
+
+if [ -d "$repo" ]; then
+    exec "${cmd[@]//\$path/$repo}"
+fi
 
 case "$repo" in
     ssh://*)
         host="$(echo "$repo" | sed 's|^ssh://\([^/]\+\)/.*$|\1|')"
         path="$(echo "$repo" | sed 's|^ssh://[^/]\+\(/.*\)$|\1|')"
         ;;
-    *)
-        host=""
-        path="$repo"
+    *:*)
+        host="${repo%%:*}"
+        path="${repo#*:}"
         ;;
 esac
 
 if [ -n "$host" ]; then
-    ssh "$host" -- cd "$path" \&\& "$@"
-elif [ -d "$path" ]; then
-    cd "$path" && exec "$@"
+    ssh "$host" -- "${cmd[@]//\$path/$path}"
 else
     echo >&2 "Dunno how to shell to $repo"
     exit 1
