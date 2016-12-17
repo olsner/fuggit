@@ -78,12 +78,6 @@ string hex(const string& bin) {
     return res;
 }
 
-string sha1(const string& data) {
-    unsigned char temp[SHA_DIGEST_LENGTH];
-    SHA1((const unsigned char *)data.data(), data.size(), temp);
-    return string((const char *)temp, sizeof(temp));
-}
-
 string sha1(const string& header, const string& data) {
     SHA_CTX sha;
     SHA1_Init(&sha);
