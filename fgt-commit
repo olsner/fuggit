@@ -19,7 +19,7 @@ pack="$(mktemp)"
 trap "rm -f $commitmsg $pack" exit
 
 echo >"$commitmsg" "*** no commit message ***"
-#vim "$commitmsg" || die "editor returned 1"
+vim "$commitmsg" || die "editor returned 1"
 author_email="$(whoami) <$(whoami)@$(hostname)>"
 
 $FGT-ls-files -print0 |
