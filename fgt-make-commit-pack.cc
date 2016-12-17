@@ -84,6 +84,35 @@ string sha1(const string& data) {
     return string((const char *)temp, sizeof(temp));
 }
 
+string sha1(const string& header, const string& data) {
+    SHA_CTX sha;
+    SHA1_Init(&sha);
+    SHA1_Update(&sha, header.data(), header.size());
+    SHA1_Update(&sha, data.data(), data.size());
+    unsigned char temp[SHA_DIGEST_LENGTH];
+    SHA1_Final(temp, &sha);
+    return string((const char *)temp, sizeof(temp));
+}
+
+const char *gittype_name(GitType type) {
+    switch (type) {
+    case OBJ_COMMIT:
+        return "commit";
+    case OBJ_TREE:
+        return "tree";
+    case OBJ_BLOB:
+        return "blob";
+    }
+    abort();
+}
+
+string git_header(GitType type, size_t length) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%s %zu", gittype_name(type), length);
+    // Trailing NUL is included as a separator
+    return string(buf, strlen(buf) + 1);
+}
+
 struct Object {
     GitType type;
     const string* data;
@@ -100,7 +129,7 @@ struct Pack {
     }
 
     string hash_add(const Object& obj) {
-        string hash = sha1(*obj.data);
+        string hash = sha1(git_header(obj.type, obj.data->size()), *obj.data);
         add(hash, obj);
         return hash;
     }
@@ -153,9 +182,9 @@ struct Pack {
 
             if (file_pos > 0) {
                 // SHA-1 type size size-in-packfile offset-in-packfile
-                fprintf(stderr, "%s %-6d %zu %zu %ld\n",
+                fprintf(stderr, "%s %-6s %zu %zu %ld\n",
                         hex(i.first).c_str(),
-                        obj.type,
+                        gittype_name(obj.type),
                         size,
                         compressed.size() + (file_pos2 - file_pos),
                         file_pos);
@@ -204,8 +233,6 @@ struct Tree {
     }
 
     const string& data() {
-        static int rec = 0;
-        rec++;
         if (data_.size() == 0) {
             if (S_ISDIR(stat().st_mode)) {
                 for (auto& it: files_) {
@@ -225,13 +252,16 @@ struct Tree {
                 abort();
             }
         }
-        rec--;
         return data_;
+    }
+
+    string header() {
+        return git_header(gittype(), data().size());
     }
 
     const string& hash() {
         if (hash_.empty()) {
-            hash_ = sha1(data());
+            hash_ = sha1(header(), data());
             fprintf(stderr, "%s: %s\n", path_.c_str(), hex(hash_).c_str());
             pack.add(hash_, object());
         }

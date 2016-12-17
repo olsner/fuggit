@@ -23,5 +23,5 @@ echo >"$commitmsg" "*** no commit message ***"
 author_email="$(whoami) <$(whoami)@$(hostname)>"
 
 $FGT-ls-files -print0 |
-$FGT-make-commit-pack "$branch" "$author_email" "$commitmsg" "$parent" |
+$FGT-make-commit-pack "refs/heads/$branch" "$author_email" "$commitmsg" "$parent" |
 ($FGT-rsh "$repo" git receive-pack . >/dev/null)
