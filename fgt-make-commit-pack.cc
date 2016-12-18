@@ -63,6 +63,19 @@ string read_file(const string &name) {
     return res;
 }
 
+string read_link(const string &name) {
+    string res(256, ' ');
+    for (;;) {
+        ssize_t n = readlink(name.c_str(), &res[0], res.size());
+        if (n < 0) perror_abort("readlink");
+        if ((size_t)n < res.size()) {
+            res.erase(n);
+            return res;
+        }
+        res.append(256, ' ');
+    }
+}
+
 enum GitType {
     OBJ_COMMIT = 1,
     OBJ_TREE = 2,
@@ -210,7 +223,7 @@ struct Tree {
     map<string, Tree> files_;
 
     Tree(const string& path): path_(path) {
-        ::stat(path.c_str(), &stat_);
+        ::lstat(path.c_str(), &stat_);
     }
 
     void addpath(const string& path, const size_t pos = 0) {
@@ -236,7 +249,8 @@ struct Tree {
 
     const string& data() {
         if (data_.size() == 0) {
-            if (S_ISDIR(stat().st_mode)) {
+            const int m = stat().st_mode;
+            if (S_ISDIR(m)) {
                 for (auto& it: files_) {
                     string hash = it.second.hash();
 
@@ -246,8 +260,10 @@ struct Tree {
                     data_ += entry;
 //                    fprintf(stderr, "%s: %s %s\n", path_.c_str(), entry.c_str(), hex(hash).c_str());
                 }
-            } else if (S_ISREG(stat().st_mode)) {
+            } else if (S_ISREG(m)) {
                 data_ = read_file(path_);
+            } else if (S_ISLNK(m)) {
+                data_ = read_link(path_);
             } else {
                 fprintf(stderr, "Unhandled file type (mode %o) for %s\n",
                         stat().st_mode, path_.c_str());
