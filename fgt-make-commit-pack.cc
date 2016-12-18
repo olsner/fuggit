@@ -17,6 +17,7 @@ namespace {
 
 static const string NUL = string(1, '\0');
 static const string SP = " ";
+static const string LF = "\n";
 
 __attribute__((noreturn)) void perror_abort(const char *fmt, ...) {
     va_list ap;
@@ -112,6 +113,19 @@ struct Object {
     const string* data;
 };
 
+void xfwrite(FILE *fp, const void *p_, size_t size) {
+    const char *p = (const char *)p_;
+    while (size) {
+        ssize_t n = fwrite(p, 1, size, fp);
+        if (n < 0) perror_abort("fwrite");
+        size -= n;
+        p += n;
+    }
+}
+void xfwrite(FILE *fp, const string& data) {
+    xfwrite(fp, data.data(), data.size());
+}
+
 struct Pack {
     map<string, Object> objects;
     SHA_CTX sha;
@@ -144,15 +158,9 @@ struct Pack {
     void write(FILE *fp, const string& data) {
         write(fp, data.data(), data.size());
     }
-    void write(FILE *fp, const void *p_, size_t size) {
-        const char *p = (const char *)p_;
+    void write(FILE *fp, const void *p, size_t size) {
         SHA1_Update(&sha, p, size);
-        while (size) {
-            ssize_t n = fwrite(p, 1, size, fp);
-            if (n < 0) perror_abort("fwrite");
-            size -= n;
-            p += n;
-        }
+        xfwrite(fp, p, size);
     }
 
     void print(FILE *fp) {
@@ -174,7 +182,7 @@ struct Pack {
             const string compressed = compress(*obj.data);
             write(fp, compressed);
 
-            if (file_pos > 0) {
+            if (0 && file_pos > 0) {
                 // SHA-1 type size size-in-packfile offset-in-packfile
                 fprintf(stderr, "%s %-6s %zu %zu %ld\n",
                         hex(i.first).c_str(),
@@ -236,7 +244,7 @@ struct Tree {
                     snprintf(buf, sizeof(buf), "%o ", it.second.git_mode());
                     const string entry = buf + it.first + NUL + hash;
                     data_ += entry;
-                    fprintf(stderr, "%s: %s %s\n", path_.c_str(), entry.c_str(), hex(hash).c_str());
+//                    fprintf(stderr, "%s: %s %s\n", path_.c_str(), entry.c_str(), hex(hash).c_str());
                 }
             } else if (S_ISREG(stat().st_mode)) {
                 data_ = read_file(path_);
@@ -256,7 +264,7 @@ struct Tree {
     const string& hash() {
         if (hash_.empty()) {
             hash_ = sha1(header(), data());
-            fprintf(stderr, "%s: %s\n", path_.c_str(), hex(hash_).c_str());
+//            fprintf(stderr, "%s: %s\n", path_.c_str(), hex(hash_).c_str());
             pack.add(hash_, object());
         }
         return hash_;
@@ -304,6 +312,16 @@ string make_commit(const string& tree, const string& commitmessage) {
         "\n\n" + commitmessage;
 }
 
+void pktline(const string& payload) {
+    if (payload.size() > 65516) {
+        fprintf(stderr, "FATAL: payload too large for pktline format\n");
+        abort();
+    }
+
+    printf("%04zx", payload.size() + 4);
+    xfwrite(stdout, payload);
+}
+
 }
 
 // fgt-make-commit-pack BRANCH COMMITMSGFILE PARENT
@@ -332,8 +350,7 @@ int main(int argc, const char *argv[]) {
 
     fprintf(stderr, "%s\n", commitobj.c_str());
 
-    printf("%04zx%s %s %s", 6 + 40 + branch.size() + 40,
-            parent.c_str(), hex(commithash).c_str(), branch.c_str());
+    pktline(parent + SP + hex(commithash) + SP + branch + LF);
     printf("0000");
     pack.print(stdout);
 
