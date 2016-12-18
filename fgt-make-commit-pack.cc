@@ -350,7 +350,9 @@ int main(int argc, const char *argv[]) {
 
     fprintf(stderr, "%s\n", commitobj.c_str());
 
-    pktline(parent + SP + hex(commithash) + SP + branch + LF);
+    const string capabilities = "report-status";
+    pktline(parent + SP + hex(commithash) + SP + branch +
+            NUL + capabilities + LF);
     printf("0000");
     pack.print(stdout);
 
