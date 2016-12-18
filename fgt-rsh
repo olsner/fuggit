@@ -24,7 +24,7 @@ case "$repo" in
 esac
 
 if [ -n "$host" ]; then
-    ssh "$host" -- "${cmd[@]//\$path/$path}"
+    ssh -x "$host" -- "${cmd[@]//\$path/$path}"
 else
     echo >&2 "Dunno how to shell to $repo"
     exit 1
