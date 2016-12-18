@@ -1,3 +1,9 @@
 #!/bin/bash
 
-exec find . \( -name .fgt -o -name .git -o -name .\*.swp \) -prune -o -true "$@"
+exec find . \
+    -not \( \( \
+        -name .fgt \
+        -o -name .git \
+        -o -name .\*.swp \
+    \) -prune \) \
+    -true "$@"
