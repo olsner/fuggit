@@ -337,8 +337,6 @@ int main(int argc, const char *argv[]) {
     size_t n = 0;
     while (getdelim(&line, &n, '\0', stdin) >= 0)
     {
-        if (string(line) == "./tmp.pack" || string(line) == "./tmp.idx")
-            continue;
         const char *path = strchr(line, '/');
         if (path)
             root.addpath(path + 1);
@@ -348,15 +346,11 @@ int main(int argc, const char *argv[]) {
     string commitobj = make_commit(hex(tree), commitmessage);
     string commithash = pack.hash_add(Object { OBJ_COMMIT, &commitobj });
 
-    fprintf(stderr, "%s\n", commitobj.c_str());
+//    fprintf(stderr, "%s\n", commitobj.c_str());
 
     const string capabilities = "report-status";
     pktline(parent + SP + hex(commithash) + SP + branch +
             NUL + capabilities + LF);
     printf("0000");
     pack.print(stdout);
-
-    FILE *fp = fopen("tmp.pack", "wb");
-    pack.print(fp);
-    fclose(fp);
 }
